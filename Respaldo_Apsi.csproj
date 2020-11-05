@@ -84,5 +84,8 @@
   <ItemGroup>
     <None Include="bmp\open.bmp" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="bmp\save.bmp" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
