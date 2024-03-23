@@ -65,7 +65,14 @@ namespace Respaldo_Apsi
             {
                 try
                 {
+                    Application.DoEvents();
+                    eEstado.Text = "Conectando la Base de Datos...";
+                    eEstado.Refresh();
                     oConexion.Open();
+                    Application.DoEvents();
+                    eEstado.Text = "Respaldo en ejecución...";
+                    eEstado.Refresh();
+                    Application.DoEvents();
                     SqlCommand oComando = new SqlCommand(lcQuery, oConexion);
                     oComando.ExecuteNonQuery();
                     MessageBox.Show("Se ha creado un BackUp de La base de datos satisfactoriamente",
@@ -73,6 +80,7 @@ namespace Respaldo_Apsi
             MessageBoxButtons.OK, MessageBoxIcon.Information);
 
                     oConexion.Close();
+                    eEstado.Text = "Respaldo Realizado";
                 }
                 catch (Exception oError) 
                 {
