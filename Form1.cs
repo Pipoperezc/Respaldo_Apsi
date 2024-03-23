@@ -9,21 +9,25 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.IO;
-
+using System.Configuration;
+using System.Collections.Specialized;
 
 namespace Respaldo_Apsi
 {
-    public partial class Form1 : Form
+    public partial class frm_Principal : Form
     {
 
-        public Form1()
+        public frm_Principal()
         {
             InitializeComponent();
-            CargaArchivos("c:\\copias");
-            tIp_Server.Text = "90.0.0.80";
-            tDatabase.Text = "APSISISTEMAS";
-            tUsuario.Text = "sa";
-            tPassword.Text = "apsi";
+            // tIp_Server.Text = "CONTA-PC\\SQLEXPRESS";
+            tIp_Server.Text = ConfigurationManager.AppSettings.Get("server") ;
+            tDatabase.Text = ConfigurationManager.AppSettings.Get("database");
+            tUsuario.Text = ConfigurationManager.AppSettings.Get("usuario");
+            tPassword.Text = ConfigurationManager.AppSettings.Get("password");
+
+            Selecciona_Dia();
+
          }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -31,76 +35,83 @@ namespace Respaldo_Apsi
 
         }
 
-        private void button1_Click(object sender, EventArgs e)
-        {
-            string lcDirectorio = "";
-            FolderBrowserDialog oDialogo = new FolderBrowserDialog();
-            if (oDialogo.ShowDialog() == DialogResult.OK)
-            {
-                lcDirectorio = oDialogo.SelectedPath;
                 
-                CargaArchivos(lcDirectorio);
-            }
-        }
-
-
-        private void CargaArchivos(string lcDirectorio) 
-        {// CargaArchivos
-            if (Directory.Exists(lcDirectorio))
-            {// Directory
-                tDirectorio.Text = lcDirectorio;
-                DirectoryInfo odInfo = new DirectoryInfo(@lcDirectorio);
-                FileInfo[] files = odInfo.GetFiles("*.jpg");
-                foreach (FileInfo oArchivo in files)
-                {
-                    lArchivos.Items.Add(oArchivo.Name);
-                }
-            } // Directory
-            else 
-            {
-                MessageBox.Show("No existe el Directorio" + lcDirectorio,"Error",MessageBoxButtons.OK,MessageBoxIcon.Error);
-            }
-
-        }// CargaArchivos
-
-        private void button2_Click(object sender, EventArgs e)
-        {//Click
-            string lcDirectorio = tDirectorio.Text.Trim();
-            SaveFileDialog oDialogoSave = new SaveFileDialog();
-            oDialogoSave.InitialDirectory = "@lcDirectorio";
-            oDialogoSave.Title = "Guardar Archivo Respaldo";
-            oDialogoSave.CheckFileExists = false;
-            oDialogoSave.CheckPathExists = true;
-            oDialogoSave.DefaultExt = "bak";
-            oDialogoSave.Filter = "Bakup Archivos (*.bak)|*.bak|All files (*.*)|*.*";
-            oDialogoSave.FilterIndex = 2;
-            oDialogoSave.RestoreDirectory = true;
-            if (oDialogoSave.ShowDialog() == DialogResult.OK)
-            {
-
-                tArchivo.Text = oDialogoSave.FileName;
-
-            }
-        }//Click
 
         private void button3_Click(object sender, EventArgs e)
         {
+            var respuesta = MessageBox.Show("Desea Realizar el Respaldo de la base de datos?", "Realizar Respaldo", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
+           
+            if (respuesta == DialogResult.No)
+            {
+                return;
+            }
+            
+            
+            // asignacion de los parametros de la conexion con la base de datos 
             string lcIP = tIp_Server.Text.Trim();
             string lcDatabase = tDatabase.Text.Trim();
             string lcUser = tUsuario.Text.Trim();
             string lcPass = tPassword.Text.Trim();
-            string lcRuta = tArchivo.Text.ToLower();
-            string lcQuery = "Backup database " + lcDatabase + " to disk = '" + lcRuta + "'";
+       
+            // Asignacion del nombre del archivo 
+            string lcNom_Archivo = tArchivo.Text.Trim().ToLower();
+            string lcQuery = "BACKUP DATABASE [APSISISTEMAS] TO  DISK = N'I:/resp_databases_apsi/"+lcNom_Archivo+"' WITH NOFORMAT, NOINIT,  NAME = N'APSISISTEMAS-Completa Base de datos Copia de seguridad', SKIP, NOREWIND, NOUNLOAD,  STATS = 10";
+            string lcConString = "Data Source=" + lcIP + ";Database="+lcDatabase+"; uid="+lcUser+"; pwd="+lcPass+";";
+         
+           //  using (SqlConnection oConexion = new SqlConnection(oCnString.ConnectionString))
             
-            string lcConString = "Data Source=" + lcIP + ";Database="+lcDatabase+";data source=.; uid="+lcUser+"; pwd="+lcPass+";";
-            SqlConnection oConexion = new SqlConnection(lcConString);
-            oConexion.Open();
-            SqlCommand oComando = new SqlCommand(lcQuery,oConexion);
-            oComando.ExecuteNonQuery();
+            using (SqlConnection oConexion = new SqlConnection(lcConString))
+            {
+                try
+                {
+                    oConexion.Open();
+                    SqlCommand oComando = new SqlCommand(lcQuery, oConexion);
+                    oComando.ExecuteNonQuery();
+                    MessageBox.Show("Se ha creado un BackUp de La base de datos satisfactoriamente",
+            "Copia de seguridad de base de datos",
+            MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    oConexion.Close();
+                }
+                catch (Exception oError) 
+                {
+                    MessageBox.Show(oError.Message,
+           "Error al copiar la base de datos",
+           MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            
+          
+
+            };
+
+        }
 
 
+        private void Selecciona_Dia()
+        {//Selecciona_Dia
+           
+            // Selecciona el dia del calendario para crear el nombre del archivo y ponerlo en el text_box
+            DateTime dFecha = oCalendario.SelectionRange.Start;
 
+            string lcDia = dFecha.Day.ToString();
+            string lcMes = dFecha.ToString("MMMMM");
+            string lcAnio = dFecha.Year.ToString();
+
+            string lcNom_Archivo = "RESPALDO_APSI_" + lcDia + "_" + lcMes + "_" + lcAnio + ".BAK";
+            tArchivo.Text = lcNom_Archivo.Trim().ToLower();
+        }//Selecciona_Dia
+
+
+        private void oCalendario_DateChanged(object sender, DateRangeEventArgs e)
+        {
+            Selecciona_Dia();
+
+        }
+
+        private void btnOff_Click(object sender, EventArgs e)
+        {
+            Application.Exit();
         }
     }
 }
