@@ -25,8 +25,9 @@ namespace Respaldo_Apsi
             tDatabase.Text = ConfigurationManager.AppSettings.Get("database");
             tUsuario.Text = ConfigurationManager.AppSettings.Get("usuario");
             tPassword.Text = ConfigurationManager.AppSettings.Get("password");
-
+            tCarpeta.Text =  ConfigurationManager.AppSettings.Get("carpeta_resp");
             Selecciona_Dia();
+            Carga_Directorio();
 
          }
 
@@ -54,9 +55,13 @@ namespace Respaldo_Apsi
             string lcUser = tUsuario.Text.Trim();
             string lcPass = tPassword.Text.Trim();
        
+
+
             // Asignacion del nombre del archivo 
             string lcNom_Archivo = tArchivo.Text.Trim().ToLower();
-            string lcQuery = "BACKUP DATABASE [APSISISTEMAS] TO  DISK = N'I:/resp_databases_apsi/"+lcNom_Archivo+"' WITH NOFORMAT, NOINIT,  NAME = N'APSISISTEMAS-Completa Base de datos Copia de seguridad', SKIP, NOREWIND, NOUNLOAD,  STATS = 10";
+            string lcCarpeta = tCarpeta.Text.Trim();
+
+            string lcQuery = "BACKUP DATABASE [APSISISTEMAS] TO  DISK = N'I:/"+lcCarpeta+"/"+lcNom_Archivo+"' WITH NOFORMAT, NOINIT,  NAME = N'APSISISTEMAS-Completa Base de datos Copia de seguridad', SKIP, NOREWIND, NOUNLOAD,  STATS = 10";
             string lcConString = "Data Source=" + lcIP + ";Database="+lcDatabase+"; uid="+lcUser+"; pwd="+lcPass+";";
          
            //  using (SqlConnection oConexion = new SqlConnection(oCnString.ConnectionString))
@@ -81,6 +86,7 @@ namespace Respaldo_Apsi
 
                     oConexion.Close();
                     eEstado.Text = "Respaldo Realizado";
+                    Carga_Directorio();
                 }
                 catch (Exception oError) 
                 {
@@ -114,12 +120,96 @@ namespace Respaldo_Apsi
         private void oCalendario_DateChanged(object sender, DateRangeEventArgs e)
         {
             Selecciona_Dia();
-
         }
 
         private void btnOff_Click(object sender, EventArgs e)
         {
             Application.Exit();
+        }
+
+        private void Carga_Directorio() 
+        { // Carga_Directorio
+
+            String lcCarpeta = "";
+
+            lcCarpeta = tCarpeta.Text.Trim();
+
+            String lcRuta = "\\\\90.0.0.9\\"+lcCarpeta+"\\";
+            lArchivos.Items.Clear();
+            DirectoryInfo lDirectorio_Respaldos = new DirectoryInfo(@lcRuta);
+            foreach (var item in lDirectorio_Respaldos.GetFiles()) 
+            {
+                lArchivos.Items.Add(item.Name);
+            }
+
+        } // Carga_Directorio
+
+        private void cmdCopiaArchivo_Click(object sender, EventArgs e)
+        {
+            if (lArchivos.SelectedItem == null)
+            {
+                MessageBox.Show("No Existe ningun archivo seleccionado de la lista", "Error", MessageBoxButtons.OK, MessageBoxIcon.Stop);
+                return;
+            }
+
+            string lcDestino = "";
+
+            FolderBrowserDialog oDialogo = new FolderBrowserDialog();
+
+            oDialogo.ShowNewFolderButton = true;
+
+            DialogResult oResultado = oDialogo.ShowDialog();
+
+
+            if (oResultado == DialogResult.No || oResultado == DialogResult.Cancel)
+                {
+                return;
+            }
+
+
+            string lcCarpeta_Destino = oDialogo.SelectedPath;
+            
+            lcDestino = lcCarpeta_Destino+"\\" + lArchivos.SelectedItem.ToString().Trim();
+          
+            String lcCarpeta = "";
+
+            lcCarpeta = tCarpeta.Text.Trim();
+
+            String lcRuta = "\\\\90.0.0.9\\" + lcCarpeta + "\\";
+
+            string lcOrigen = lcRuta + lArchivos.SelectedItem.ToString().Trim();
+
+            try
+            {
+                if (File.Exists(lcOrigen) && !File.Exists(lcDestino))
+                {
+                    FileInfo arch_Copiar = new FileInfo(lcOrigen);
+                    Application.DoEvents();
+                    eEstado.Text = "Copiando Archivos por favor espere ...";
+                    eEstado.Refresh();
+
+                    arch_Copiar.CopyTo(lcDestino);
+                    MessageBox.Show("Archivo Copiado Exitosamente", "Archivo Copiado", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    Application.DoEvents();
+                    eEstado.Text = "Archivo Copiado";
+                    eEstado.Refresh();
+
+                }
+
+                else
+                {
+                    MessageBox.Show("El Archivo no se encuentra o la carpeta de destino no esta definido","Error" ,MessageBoxButtons.OK, MessageBoxIcon.Stop);
+                }
+            }
+
+            catch (Exception oError)
+            {
+                MessageBox.Show(oError.Message,
+       "Error al copiar la base de datos",
+       MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
         }
     }
 }
